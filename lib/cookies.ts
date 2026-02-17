@@ -16,7 +16,8 @@ export interface ChromeCookie {
 }
 
 function toPlaywrightCookie(c: ChromeCookie): Cookie {
-  const domain = c.hostOnly ? c.domain : c.domain.startsWith(".") ? c.domain : `.${c.domain}`;
+  // Playwright/Chromium: всегда .domain для отправки на domain и subdomains
+  const domain = c.domain.startsWith(".") ? c.domain : `.${c.domain}`;
   const sameSiteMap = { no_restriction: "None" as const, lax: "Lax" as const, strict: "Strict" as const, unspecified: "Lax" as const };
   const sameSite = c.sameSite && c.sameSite !== "unspecified" ? sameSiteMap[c.sameSite] : "Lax";
   const expires = !c.session && c.expirationDate ? Math.floor(c.expirationDate) : 9999999999;

@@ -46,6 +46,8 @@ git push -u origin main
    - `DEBUG_UPLOAD` = `true`
 4. Сохрани
 
+**Важно:** Cookies экспортируй только когда **залогинен** на soundcloud.com. В экспорте должен быть `oauth_token`. Если редирект на /welcome — cookies невалидны, переэкспортируй.
+
 ## Шаг 5: Домен
 
 1. **Settings** → **Networking** → **Generate Domain**

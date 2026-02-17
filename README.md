@@ -118,6 +118,7 @@ HEADED=true npm run dev
 
 ## Ошибки
 
+- **Редирект на /welcome** или **Cookies не работают** — SoundCloud не видит сессию. Cookies истекли или экспортированы неправильно. Зайди на soundcloud.com в Chrome, **залогинься**, открой DevTools → Application → Cookies → soundcloud.com, или используй EditThisCookie → Export. Убедись, что в экспорте есть `oauth_token`. Запусти `npm run encode-cookies` и обнови SOUNDCLOUD_COOKIES в Railway.
 - **Сессия истекла** — экспортируй свежие cookies
 - **Таймаут** — локально часто нестабильно. Деплой на Railway обычно решает.
 - **ERR_CONNECTION_REFUSED** — проверь VPN, firewall, интернет

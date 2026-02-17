@@ -101,7 +101,24 @@ export async function uploadToSoundCloud(
       waitUntil: "domcontentloaded",
       timeout: NAV_TIMEOUT,
     }).catch(() => {});
+    await page.waitForTimeout(3000);
+
+    // Проверка сессии: /you — только для залогиненных
+    log("goto /you");
+    await page.goto("https://soundcloud.com/you", {
+      waitUntil: "domcontentloaded",
+      timeout: NAV_TIMEOUT,
+    }).catch(() => {});
     await page.waitForTimeout(2000);
+    const youUrl = page.url();
+    log("you url", youUrl);
+    if (youUrl.includes("/welcome") || youUrl.includes("/signin") || youUrl.includes("/login")) {
+      return {
+        success: false,
+        error:
+          "Cookies не работают — SoundCloud не видит сессию. Зайди на soundcloud.com в Chrome, залогинься, установи EditThisCookie, экспортируй cookies (Export → JSON), запусти npm run encode-cookies и обнови SOUNDCLOUD_COOKIES в Railway.",
+      };
+    }
 
     log("goto", UPLOAD_URL);
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -119,12 +136,22 @@ export async function uploadToSoundCloud(
       }
     }
 
-    const url = page.url();
+    let url = page.url();
     log("current url", url);
+
     if (url.includes("/signin") || url.includes("/login")) {
       return {
         success: false,
         error: "Сессия истекла. Экспортируй свежие cookies с soundcloud.com",
+      };
+    }
+
+    // /welcome = не залогинен, cookies не работают
+    if (url.includes("/welcome")) {
+      return {
+        success: false,
+        error:
+          "Редирект на /welcome — cookies невалидны или истекли. Зайди на soundcloud.com в браузере, залогинься, экспортируй cookies через EditThisCookie и обнови SOUNDCLOUD_COOKIES в Railway.",
       };
     }
 
