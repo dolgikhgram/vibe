@@ -95,11 +95,19 @@ export async function uploadToSoundCloud(
 
     const page = await context.newPage();
 
+    // Сначала главная — чтобы cookies применились
+    log("goto home");
+    await page.goto("https://soundcloud.com", {
+      waitUntil: "domcontentloaded",
+      timeout: NAV_TIMEOUT,
+    }).catch(() => {});
+    await page.waitForTimeout(2000);
+
     log("goto", UPLOAD_URL);
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         await page.goto(UPLOAD_URL, {
-          waitUntil: "domcontentloaded",
+          waitUntil: "load",
           timeout: NAV_TIMEOUT,
         });
         log("goto ok, attempt", attempt);
@@ -120,9 +128,45 @@ export async function uploadToSoundCloud(
       };
     }
 
+    // SPA: ждём полной загрузки и рендера
+    await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(8000);
+
+    // Клик по зоне загрузки — может показать скрытый input
+    const dropZoneSelectors = [
+      '[data-testid="upload-dropzone"]',
+      '[data-drop-zone]',
+      'label[for*="file"]',
+      'button:has-text("Choose"), button:has-text("Select"), button:has-text("Upload")',
+      'a:has-text("Choose"), a:has-text("Upload")',
+      '[role="button"]:has-text("Upload")',
+      '.upload-area, .drop-zone, [class*="Upload"]',
+    ];
+    for (const sel of dropZoneSelectors) {
+      const el = page.locator(sel).first();
+      if (await el.isVisible().catch(() => false)) {
+        await el.hover().catch(() => {});
+        await el.click().catch(() => {});
+        await page.waitForTimeout(2000);
+        log("clicked drop zone", sel);
+        break;
+      }
+    }
+
     log("wait file input");
     const fileInput = page.locator('input[type="file"]').first();
-    await fileInput.waitFor({ state: "attached", timeout: 15_000 });
+    try {
+      await fileInput.waitFor({ state: "attached", timeout: 45_000 });
+    } catch (e) {
+      const count = await page.locator('input[type="file"]').count();
+      errLog("file input not found, count=", count);
+      if (DEBUG) {
+        const screenshotPath = path.join(os.tmpdir(), `soundcloud-upload-${Date.now()}.png`);
+        await page.screenshot({ path: screenshotPath }).catch(() => {});
+        errLog("screenshot", screenshotPath);
+      }
+      throw e;
+    }
     log("set files");
     await fileInput.setInputFiles(absolutePath);
     log("wait for form");
