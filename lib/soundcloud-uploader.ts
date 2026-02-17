@@ -99,18 +99,17 @@ export async function uploadToSoundCloud(
       javaScriptEnabled: true,
     });
 
-    // Playwright: url задаёт scope — надёжнее чем domain для первого запроса
-    const cookiesWithUrl = cookies.map(({ name, value, path, expires, httpOnly, secure, sameSite }) => ({
+    // Playwright: при url не передавать path — иначе "Cookie should have either url or path"
+    const cookiesForPlaywright = cookies.map(({ name, value, expires, httpOnly, secure, sameSite }) => ({
       name,
       value,
       url: "https://soundcloud.com",
-      path: path || "/",
       expires: expires ?? 9999999999,
       httpOnly: httpOnly ?? false,
       secure: secure ?? false,
       sameSite: sameSite ?? "Lax",
     }));
-    await context.addCookies(cookiesWithUrl);
+    await context.addCookies(cookiesForPlaywright);
 
     const page = await context.newPage();
 
