@@ -1,6 +1,7 @@
 FROM node:20-bookworm-slim
 
 RUN apt-get update && apt-get install -y \
+    xvfb \
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -34,4 +35,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Xvfb — виртуальный дисплей для headed Chrome (обходит DataDome)
+CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1280x800x24", "npm", "start"]

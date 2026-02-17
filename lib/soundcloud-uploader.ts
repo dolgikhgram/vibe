@@ -66,7 +66,9 @@ export async function uploadToSoundCloud(
     const absolutePath = path.resolve(filePath);
   const proxy = process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
 
-  const headless = process.env.HEADED !== "true";
+  // В Docker с Xvfb — headed обходит DataDome (SoundCloud)
+  const inDocker = fs.existsSync("/.dockerenv");
+  const headless = !(process.env.HEADED === "true" || inDocker);
   const useChrome = process.env.USE_SYSTEM_CHROME === "true" && !fs.existsSync("/.dockerenv");
   log("launch", { headless, useChrome, fileSize: fs.statSync(filePath).size });
 
@@ -97,6 +99,8 @@ export async function uploadToSoundCloud(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       ignoreHTTPSErrors: true,
       javaScriptEnabled: true,
+      locale: "en-US",
+      timezoneId: "America/New_York",
     });
 
     // Playwright: при url не передавать path — иначе "Cookie should have either url or path"
