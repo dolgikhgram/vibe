@@ -124,8 +124,14 @@ export async function uploadToSoundCloud(
     await fileInput.waitFor({ state: "attached", timeout: 15_000 });
     log("set files");
     await fileInput.setInputFiles(absolutePath);
-    log("wait 5s after file");
+    log("wait for form");
     await page.waitForTimeout(5000);
+
+    await page.waitForSelector(
+      'button:has-text("Save"), button:has-text("Publish"), button:has-text("Upload"), [data-testid="save-button"]',
+      { timeout: 120_000 }
+    ).catch(() => null);
+    await page.waitForTimeout(2000);
 
     if (title) {
       const titleSelectors = [
@@ -148,6 +154,8 @@ export async function uploadToSoundCloud(
       'button:has-text("Publish")',
       'button:has-text("Upload")',
       'button:has-text("Сохранить")',
+      'a:has-text("Save")',
+      'a:has-text("Publish")',
       '[data-testid="save-button"]',
       'button[type="submit"]',
     ];
@@ -158,36 +166,55 @@ export async function uploadToSoundCloud(
       if (await btn.isVisible()) {
         await btn.click();
         saved = true;
+        log("clicked", sel);
         break;
       }
     }
     if (!saved) {
       const byRole = page.getByRole("button", { name: /save|publish|upload|сохранить/i });
-      if (await byRole.isVisible()) await byRole.first().click();
+      if (await byRole.isVisible()) {
+        await byRole.first().click();
+        saved = true;
+      }
+    }
+    if (!saved) {
+      const linkRole = page.getByRole("link", { name: /save|publish/i });
+      if (await linkRole.isVisible()) {
+        await linkRole.first().click();
+        saved = true;
+      }
     }
     log("save clicked, saved=", saved);
 
-    log("wait track link, timeout", UPLOAD_TIMEOUT / 1000, "s");
-    const trackLink = await page
-      .waitForSelector('a[href*="/tracks/"]', { timeout: UPLOAD_TIMEOUT })
-      .catch(async (e) => {
-        log("track link timeout", (e as Error)?.message);
-        if (DEBUG) {
-          const screenshotPath = path.join(os.tmpdir(), `soundcloud-timeout-${Date.now()}.png`);
-          await page.screenshot({ path: screenshotPath }).catch(() => {});
-          log("screenshot saved", screenshotPath);
-        }
-        return null;
-      });
+    const checkSuccess = async (): Promise<string | null> => {
+      const u = page.url();
+      if (u.includes("/tracks/")) return u;
+      const link = await page.locator('a[href*="/tracks/"]').first();
+      if (await link.isVisible()) {
+        const href = await link.getAttribute("href");
+        return href?.startsWith("http") ? href : `https://soundcloud.com${href || ""}`;
+      }
+      return null;
+    };
 
-    if (trackLink) {
-      const href = await trackLink.getAttribute("href");
-      const trackUrl = href?.startsWith("http") ? href : `https://soundcloud.com${href || ""}`;
-      const trackId = trackUrl.match(/\/tracks\/(\d+)/)?.[1];
-      return { success: true, url: trackUrl, trackId };
+    log("wait for success, timeout", UPLOAD_TIMEOUT / 1000, "s");
+    const start = Date.now();
+    while (Date.now() - start < UPLOAD_TIMEOUT) {
+      const result = await checkSuccess();
+      if (result) {
+        log("found url", result);
+        return {
+          success: true,
+          url: result,
+          trackId: result.match(/\/tracks\/(\d+)/)?.[1],
+        };
+      }
+      await page.waitForTimeout(5000);
+      log("poll, elapsed", Math.round((Date.now() - start) / 1000), "s");
     }
 
     const finalUrl = page.url();
+    log("timeout, final url", finalUrl);
     if (finalUrl.includes("/tracks/") || finalUrl.includes("/you/")) {
       return {
         success: true,
@@ -198,7 +225,7 @@ export async function uploadToSoundCloud(
 
     return {
       success: false,
-      error: "Загрузка завершена, но ссылка на трек не найдена",
+      error: `Таймаут. Кнопка Save не сработала или интерфейс изменился. URL: ${finalUrl.slice(0, 60)}...`,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

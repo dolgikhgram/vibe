@@ -37,13 +37,14 @@ git push -u origin main
 5. Выбери свой репозиторий
 6. Если проект в подпапке `vibe` — **Settings** → **Root Directory** → `vibe`
 
-## Шаг 4: Переменная
+## Шаг 4: Переменные
 
 1. В проекте Railway открой **Variables**
-2. **Add Variable**
-3. Name: `SOUNDCLOUD_COOKIES`
-4. Value: вставь base64 из шага 1
-5. Сохрани
+2. **Add Variable**:
+   - `SOUNDCLOUD_COOKIES` = base64 из шага 1
+3. Для отладки (логи в Deployments):
+   - `DEBUG_UPLOAD` = `true`
+4. Сохрани
 
 ## Шаг 5: Домен
 
