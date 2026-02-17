@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: vibe-soundcloud-upload
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SOUNDCLOUD_COOKIES
+        sync: false

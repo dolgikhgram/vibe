@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SoundCloud Upload
 
-## Getting Started
+Загрузка MP3 на SoundCloud через Playwright (без официального API). Один раз экспортируешь cookies — делишься ссылкой, все загружают на твой аккаунт.
 
-First, run the development server:
+## Настройка
+
+### 1. Cookies
+
+1. Войди на [soundcloud.com](https://soundcloud.com) в браузере
+2. Расширение **EditThisCookie** или **Cookie-Editor** → экспорт cookies в JSON
+3. Сохрани как `cookies.json` в корне проекта
+
+### 2. Для деплоя
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run encode-cookies
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Скопируй вывод и задай переменную **SOUNDCLOUD_COOKIES** в Railway/Render.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Локально
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npx playwright install chromium
+npm run dev
+```
 
-## Learn More
+Открой http://localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
+## Деплой на Railway
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 1. Подготовка cookies
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run encode-cookies
+```
 
-## Deploy on Vercel
+Скопируй вывод (длинная base64 строка).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Репозиторий
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Убедись, что код в GitHub. Если нет:
+
+```bash
+cd vibe
+git init
+git add .
+git commit -m "SoundCloud upload"
+git branch -M main
+git remote add origin https://github.com/TVOJ_USER/TVOJ_REPO.git
+git push -u origin main
+```
+
+### 3. Railway
+
+1. [railway.app](https://railway.app) → **Login** (через GitHub)
+2. **New Project** → **Deploy from GitHub repo**
+3. Выбери репозиторий, папку `vibe` (если проект в подпапке)
+4. **Variables** → **Add Variable**:
+   - `SOUNDCLOUD_COOKIES` = вставь base64 из шага 1
+5. **Deploy** запустится автоматически
+6. **Settings** → **Generate Domain** → получишь ссылку `https://xxx.railway.app`
+
+### 4. Root Directory (если проект в подпапке)
+
+Если в репо есть папка `vibe` с проектом: **Settings** → **Root Directory** → `vibe`
+
+### 5. Готово
+
+Открой ссылку, загрузи MP3 — всё работает на сервере, без локальных проблем с сетью.
+
+## Docker
+
+```bash
+docker build -t vibe .
+docker run -p 3000:3000 -e SOUNDCLOUD_COOKIES="<base64>" vibe
+```
+
+## API
+
+```
+POST /api/upload
+Content-Type: multipart/form-data
+
+file — MP3, до 500 MB
+title — опционально
+```
+
+Ответ: `{ success: true, url: "https://soundcloud.com/..." }`
+
+## Отладка (локально)
+
+**Таймаут при открытии soundcloud.com** — Chromium не может достучаться. Попробуй:
+
+```bash
+USE_SYSTEM_CHROME=true npm run dev
+```
+
+Использует установленный Chrome — у него тот же доступ к сети, что и у обычного браузера.
+
+```bash
+DEBUG_UPLOAD=true npm run dev
+```
+
+Логи в консоли. При таймауте — скриншот в `/tmp/soundcloud-timeout-*.png`.
+
+```bash
+HEADED=true npm run dev
+```
+
+Видимый браузер — смотришь процесс загрузки.
+
+## Ошибки
+
+- **Сессия истекла** — экспортируй свежие cookies
+- **Таймаут** — локально часто нестабильно. Деплой на Railway обычно решает.
+- **ERR_CONNECTION_REFUSED** — проверь VPN, firewall, интернет
+- **Ошибка 310** — отключи системный прокси или задай `HTTP_PROXY`
