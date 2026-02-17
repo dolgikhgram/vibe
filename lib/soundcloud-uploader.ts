@@ -28,6 +28,7 @@ export type UploadResponse = UploadResult | UploadError;
 const CHROMIUM_ARGS = [
   "--no-sandbox",
   "--disable-setuid-sandbox",
+  "--disable-blink-features=AutomationControlled",
   "--disable-dev-shm-usage",
   "--disable-gpu",
   "--disable-software-rasterizer",
@@ -54,8 +55,15 @@ export async function uploadToSoundCloud(
     return { success: false, error: "File not found" };
   }
 
-  const cookies = loadCookies();
-  const absolutePath = path.resolve(filePath);
+    const cookies = loadCookies();
+    const cookieNames = cookies.map((c) => c.name);
+    const hasOauth = cookies.some((c) => c.name === "oauth_token");
+    errLog("cookies", "count=" + cookies.length, "names=" + cookieNames.join(","), "oauth_token=" + hasOauth);
+    if (hasOauth) {
+      const oauth = cookies.find((c) => c.name === "oauth_token");
+      errLog("oauth_token domain=" + oauth?.domain, "valueLen=" + (oauth?.value?.length ?? 0));
+    }
+    const absolutePath = path.resolve(filePath);
   const proxy = process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
 
   const headless = process.env.HEADED !== "true";
@@ -86,12 +94,23 @@ export async function uploadToSoundCloud(
     const context = await browser.newContext({
       viewport: { width: 1280, height: 800 },
       userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       ignoreHTTPSErrors: true,
       javaScriptEnabled: true,
     });
 
-    await context.addCookies(cookies);
+    // Playwright: url задаёт scope — надёжнее чем domain для первого запроса
+    const cookiesWithUrl = cookies.map(({ name, value, path, expires, httpOnly, secure, sameSite }) => ({
+      name,
+      value,
+      url: "https://soundcloud.com",
+      path: path || "/",
+      expires: expires ?? 9999999999,
+      httpOnly: httpOnly ?? false,
+      secure: secure ?? false,
+      sameSite: sameSite ?? "Lax",
+    }));
+    await context.addCookies(cookiesWithUrl);
 
     const page = await context.newPage();
 
