@@ -51,6 +51,15 @@ git push -u origin main
 1. **Settings** → **Networking** → **Generate Domain**
 2. Скопируй ссылку вида `https://vibe-production-xxxx.up.railway.app`
 
+## Проверка
+
+1. `https://ТВОЙ-ДОМЕН.railway.app/api/health` — должен вернуть `{"ok":true}`
+2. `https://ТВОЙ-ДОМЕН.railway.app/api/status` — проверка cookies (`cookies: true` если ок)
+
+## Логи
+
+**Deployments** → выбери последний деплой → **View Logs**. Там будут `[upload]` логи. Добавь переменную `DEBUG_UPLOAD=true` для подробных логов.
+
 ## Готово
 
 Открой ссылку в браузере. Загрузи MP3 — загрузка идёт на сервере Railway, сеть стабильная.

@@ -10,6 +10,7 @@ const UPLOAD_TIMEOUT = 300_000; // 5 min для обработки на стор
 
 const DEBUG = process.env.DEBUG_UPLOAD === "true" || process.env.DEBUG_UPLOAD === "1";
 const log = (...args: unknown[]) => DEBUG && console.log("[upload]", new Date().toISOString(), ...args);
+const errLog = (...args: unknown[]) => console.log("[upload ERROR]", new Date().toISOString(), ...args);
 
 export interface UploadResult {
   success: true;
@@ -127,10 +128,12 @@ export async function uploadToSoundCloud(
     log("wait for form");
     await page.waitForTimeout(5000);
 
-    await page.waitForSelector(
-      'button:has-text("Save"), button:has-text("Publish"), button:has-text("Upload"), [data-testid="save-button"]',
-      { timeout: 120_000 }
-    ).catch(() => null);
+    const saveBtn = await page
+      .waitForSelector('button:has-text("Save"), button:has-text("Publish"), [data-testid="save-button"]', {
+        timeout: 120_000,
+      })
+      .catch(() => null);
+    if (!saveBtn) errLog("Save button not found after 120s");
     await page.waitForTimeout(2000);
 
     if (title) {
@@ -214,7 +217,7 @@ export async function uploadToSoundCloud(
     }
 
     const finalUrl = page.url();
-    log("timeout, final url", finalUrl);
+    errLog("timeout, final url", finalUrl, "saved=", saved);
     if (finalUrl.includes("/tracks/") || finalUrl.includes("/you/")) {
       return {
         success: true,
@@ -225,10 +228,11 @@ export async function uploadToSoundCloud(
 
     return {
       success: false,
-      error: `Таймаут. Кнопка Save не сработала или интерфейс изменился. URL: ${finalUrl.slice(0, 60)}...`,
+      error: `Таймаут. URL: ${finalUrl.slice(0, 80)}... Логи: Railway → Deployments → View Logs`,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    errLog("catch", msg);
     let errorMsg = msg;
 
     if (msg.includes("ERR_CONNECTION_REFUSED") || msg.includes("net::ERR")) {

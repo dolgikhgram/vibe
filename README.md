@@ -77,6 +77,11 @@ docker build -t vibe .
 docker run -p 3000:3000 -e SOUNDCLOUD_COOKIES="<base64>" vibe
 ```
 
+## Проверка бэкенда
+
+- `GET /api/health` — бэкенд жив
+- `GET /api/status` — проверка cookies (ok, env/file, oauth_token)
+
 ## API
 
 ```
